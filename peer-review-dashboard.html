@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PeerReview AI — Panel de Autor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/pinia@2/dist/pinia.iife.js"></script>
+<style>
+/* ── CSS Variables & Reset ───────────────────────────────────────── */
+:root {
+  --bg:#0d0f14;--surface:#13161d;--surface-2:#1a1e28;
+  --border:rgba(255,255,255,0.07);--border-hover:rgba(255,255,255,0.15);
+  --text:#e8eaf0;--text-muted:#7a8099;--text-dim:#4a5070;
+  --accent:#6c8cff;--accent-soft:rgba(108,140,255,0.12);--accent-glow:rgba(108,140,255,0.25);
+  --green:#3dd68c;--green-soft:rgba(61,214,140,0.12);
+  --yellow:#f5c842;--yellow-soft:rgba(245,200,66,0.12);
+  --orange:#ff8c42;--orange-soft:rgba(255,140,66,0.12);
+  --red:#ff5252;--red-soft:rgba(255,82,82,0.12);
+  --blue:#42b4ff;--blue-soft:rgba(66,180,255,0.12);
+  --radius:14px;--radius-sm:8px;--shadow:0 4px 24px rgba(0,0,0,0.4);
+  --sidebar-width:240px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% -10%,rgba(108,140,255,.08) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 110%,rgba(61,214,140,.06) 0%,transparent 60%);pointer-events:none;z-index:0}
+button{cursor:pointer;font-family:'DM Sans',sans-serif}
+input,textarea,select{font-family:'DM Sans',sans-serif}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--surface-2);border-radius:3px}
+
+/* ── Layout ─────────────────────────────────────────────────────── */
+.app-layout{display:flex;min-height:100vh}
+.main{margin-left:var(--sidebar-width);flex:1;min-height:100vh;position:relative;z-index:1}
+.content{padding:32px;max-width:1100px}
+.grid-2{display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
+.right-col{position:sticky;top:76px}
+
+/* ── Sidebar ────────────────────────────────────────────────────── */
+.sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-width);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.sidebar-logo{padding:28px 24px 20px;border-bottom:1px solid var(--border)}
+.logo-text{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--text)}
+.logo-accent{color:var(--accent)}
+.logo-sub{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:2px;color:var(--accent);margin-top:2px}
+.sidebar-nav{padding:16px 12px;flex:1;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);padding:8px 12px 4px;margin-top:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);font-size:14px;font-weight:400;color:var(--text-muted);background:none;border:none;width:100%;text-align:left;transition:all .15s}
+.nav-item:hover{background:var(--surface-2);color:var(--text)}
+.nav-item.active{background:var(--accent-soft);color:var(--accent);font-weight:500}
+.nav-icon{width:18px;height:18px;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--accent);color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:100px;min-width:20px;text-align:center}
+.sidebar-user{padding:16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#a06cff);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:white;flex-shrink:0}
+.user-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role{font-size:11px;color:var(--text-muted)}
+
+/* ── Topbar ─────────────────────────────────────────────────────── */
+.topbar{position:sticky;top:0;background:rgba(13,15,20,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;z-index:50}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:600}
+.topbar-actions{display:flex;align-items:center;gap:10px}
+.icon-btn{width:38px;height:38px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-muted);position:relative;transition:all .15s}
+.icon-btn:hover{border-color:var(--border-hover);background:var(--surface-2);color:var(--text)}
+.bell-dot{position:absolute;top:7px;right:7px;width:8px;height:8px;background:var(--accent);border-radius:50%;border:2px solid var(--bg)}
+.hamburger{display:none;width:38px;height:38px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--border);align-items:center;justify-content:center;flex-direction:column;gap:4px;padding:10px}
+.hamburger span{display:block;height:2px;background:var(--text);border-radius:2px;width:100%}
+.search-input{background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:7px 12px;font-size:13px;color:var(--text);outline:none;width:200px;margin-right:6px}
+.btn-primary-top{display:flex;align-items:center;gap:7px;padding:9px 18px;background:var(--accent);color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;transition:all .2s;white-space:nowrap}
+.btn-primary-top:hover{background:#7d9cff;transform:translateY(-1px);box-shadow:0 4px 20px var(--accent-glow)}
+
+/* ── Stats ──────────────────────────────────────────────────────── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:border-color .2s;animation:fadeUp .4s ease both}
+.stat-card:hover{border-color:var(--border-hover)}
+.stat-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin-bottom:10px}
+.stat-value{font-family:'Playfair Display',serif;font-size:32px;font-weight:700;line-height:1;margin-bottom:6px}
+.stat-sub{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:5px}
+.stat-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.progress-bar{height:3px;background:var(--surface-2);border-radius:3px;margin-top:12px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),#a06cff);transition:width .6s ease}
+
+/* ── Manuscript List ─────────────────────────────────────────────── */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.section-title{font-family:'Playfair Display',serif;font-size:17px;font-weight:600}
+.section-count{font-size:12px;color:var(--text-muted);background:var(--surface-2);padding:3px 10px;border-radius:100px;border:1px solid var(--border)}
+.filter-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.filter-tab{display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:100px;font-size:12px;font-weight:500;border:1px solid var(--border);background:transparent;color:var(--text-muted);transition:all .15s}
+.filter-tab:hover{border-color:var(--border-hover);color:var(--text)}
+.filter-tab.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.tab-count{background:rgba(255,255,255,.1);border-radius:100px;padding:0 5px;font-size:10px;font-weight:700}
+.filter-tab.active .tab-count{background:rgba(108,140,255,.2)}
+.manuscript-list{display:flex;flex-direction:column;gap:12px}
+
+/* ── Manuscript Card ─────────────────────────────────────────────── */
+.manuscript-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;animation:fadeUp .35s ease both}
+.manuscript-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px}
+.stripe-enviado::before{background:var(--blue)}
+.stripe-revision::before{background:var(--yellow)}
+.stripe-decision::before{background:var(--orange)}
+.stripe-aceptado::before{background:var(--green)}
+.stripe-rechazado::before{background:var(--red)}
+.manuscript-card:hover{border-color:var(--border-hover);transform:translateY(-2px);box-shadow:var(--shadow)}
+.mc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.mc-title{font-size:14px;font-weight:600;color:var(--text);line-height:1.4;flex:1}
+.mc-meta{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:4px}
+.mc-meta-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted)}
+.mc-meta-item.action-required{color:var(--orange)}
+.mc-meta-item.accepted{color:var(--green)}
+.rp-label-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:12px;margin-bottom:5px}
+.rp-bar{height:3px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.rp-fill{height:100%;background:linear-gradient(90deg,var(--yellow),var(--orange));border-radius:3px;transition:width .6s ease}
+.mc-actions{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap}
+.mc-btn{font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);transition:all .15s}
+.mc-btn:hover{border-color:var(--border-hover);color:var(--text);background:var(--surface-2)}
+.mc-btn-warning{color:var(--orange)!important;border-color:var(--orange)!important;background:var(--orange-soft)!important}
+.mc-btn-danger{color:var(--red)!important;border-color:var(--red)!important;background:var(--red-soft)!important}
+.mc-review-info{margin-left:auto;font-size:12px;color:var(--text-dim)}
+
+/* ── Status Badge ───────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:100px;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.badge-dot{width:5px;height:5px;border-radius:50%}
+.badge-enviado{background:var(--blue-soft);color:var(--blue)}
+.badge-revision{background:var(--yellow-soft);color:var(--yellow)}
+.badge-decision{background:var(--orange-soft);color:var(--orange)}
+.badge-aceptado{background:var(--green-soft);color:var(--green)}
+.badge-rechazado{background:var(--red-soft);color:var(--red)}
+
+/* ── Empty State ────────────────────────────────────────────────── */
+.empty-state{background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius);padding:56px 32px;text-align:center}
+.empty-icon{width:60px;height:60px;background:var(--accent-soft);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.empty-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:600;margin-bottom:10px}
+.empty-text{font-size:14px;color:var(--text-muted);max-width:340px;margin:0 auto 24px;line-height:1.6}
+.btn-primary-cta{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;background:var(--accent);color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;transition:all .2s}
+.btn-primary-cta:hover{background:#7d9cff;box-shadow:0 4px 20px var(--accent-glow)}
+.btn-ghost-sm{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:500;transition:all .15s}
+.btn-ghost-sm:hover{border-color:var(--border-hover);color:var(--text)}
+
+/* ── Quick Submit ───────────────────────────────────────────────── */
+.quick-submit{background:linear-gradient(135deg,rgba(108,140,255,.15),rgba(108,140,255,.05));border:1px solid rgba(108,140,255,.25);border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:24px}
+.qs-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px}
+.qs-sub{font-size:12px;color:var(--text-muted);margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:6px}
+.qs-sub strong{color:var(--text)}
+.deadline-dot{width:7px;height:7px;border-radius:50%;background:var(--orange);animation:pulse 2s infinite;flex-shrink:0}
+.btn-primary-full{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;padding:11px 18px;background:var(--accent);color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;transition:all .2s;margin-bottom:10px}
+.btn-primary-full:hover{background:#7d9cff;box-shadow:0 4px 20px var(--accent-glow);transform:translateY(-1px)}
+.qs-hint{font-size:11px;color:var(--text-dim)}
+
+/* ── Notifications ──────────────────────────────────────────────── */
+.notif-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.notif-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.notif-title{font-family:'Playfair Display',serif;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.notif-badge{background:var(--accent);color:white;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;padding:2px 7px;border-radius:100px}
+.notif-mark{font-size:11px;font-weight:500;color:var(--accent);background:none;border:none}
+.notif-mark:hover{text-decoration:underline}
+.notif-list{display:flex;flex-direction:column}
+.notif-item{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;transition:background .15s;cursor:pointer;position:relative}
+.notif-item:last-child{border-bottom:none}
+.notif-item:hover{background:var(--surface-2)}
+.notif-item.unread::before{content:'';position:absolute;left:8px;top:50%;transform:translateY(-50%);width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.notif-icon-wrap{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.notif-text{font-size:13px;line-height:1.45;color:var(--text)}
+.notif-time{font-size:11px;color:var(--text-dim);margin-top:3px}
+.notif-empty{padding:24px;text-align:center;font-size:13px;color:var(--text-dim)}
+
+/* ── Modal ──────────────────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:100%;max-width:520px;padding:32px;max-height:90vh;overflow-y:auto}
+.modal-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:24px}
+.modal-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;margin-bottom:4px}
+.modal-sub{font-size:13px;color:var(--text-muted);line-height:1.5}
+.modal-close{width:32px;height:32px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-muted);flex-shrink:0;transition:all .15s}
+.modal-close:hover{color:var(--text)}
+.form-group{margin-bottom:18px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px}
+.form-input,.form-textarea,.form-select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px;font-size:14px;color:var(--text);outline:none;transition:border-color .15s}
+.form-input:focus,.form-textarea:focus,.form-select:focus{border-color:var(--accent)}
+.form-input.is-error,.form-textarea.is-error,.form-select.is-error{border-color:var(--red)}
+.form-textarea{resize:vertical;min-height:100px}
+.select-wrap{position:relative}
+.form-select{appearance:none;padding-right:36px}
+.select-arrow{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none}
+.form-hint{font-size:11px;color:var(--text-dim);margin-top:5px}
+.form-error-msg{font-size:11px;color:var(--red);margin-top:5px;font-weight:500}
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius-sm);padding:28px;text-align:center;cursor:pointer;transition:all .15s;background:var(--bg)}
+.upload-zone:hover,.upload-zone.drag-active{border-color:var(--accent);background:var(--accent-soft)}
+.upload-zone.has-file{border-color:var(--green);background:var(--green-soft)}
+.upload-zone.is-error{border-color:var(--red)}
+.upload-text{font-size:13px;color:var(--text-muted)}
+.upload-text strong{color:var(--accent)}
+.upload-hint{font-size:11px;color:var(--text-dim);margin-top:4px}
+.modal-footer{display:flex;gap:10px;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+.btn-ghost-modal{flex:1;padding:11px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);font-size:14px;font-weight:500;transition:all .15s}
+.btn-ghost-modal:hover{border-color:var(--border-hover);color:var(--text)}
+.btn-submit{flex:2;padding:11px;background:var(--accent);color:white;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-submit:hover:not(:disabled){background:#7d9cff;box-shadow:0 4px 20px var(--accent-glow)}
+.btn-submit:disabled{opacity:.6;cursor:not-allowed}
+.spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+
+/* ── Detail Drawer ──────────────────────────────────────────────── */
+.detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;display:flex;justify-content:flex-end}
+.detail-drawer{background:var(--surface);border-left:1px solid var(--border);width:420px;max-width:100vw;height:100%;display:flex;flex-direction:column;overflow:hidden}
+.drawer-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.drawer-body{flex:1;overflow-y:auto;padding:24px}
+.drawer-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;line-height:1.4;margin-bottom:20px}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.meta-item{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px}
+.meta-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:3px}
+.meta-value{font-size:13px;font-weight:500;color:var(--text)}
+.section-block{margin-bottom:20px}
+.block-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px}
+.block-text{font-size:13px;color:var(--text-muted);line-height:1.6}
+.keyword-chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:11px;padding:3px 10px;border-radius:100px;background:var(--accent-soft);color:var(--accent);border:1px solid rgba(108,140,255,.2)}
+.timeline{display:flex;flex-direction:column;gap:0}
+.tl-item{display:flex;gap:12px;align-items:flex-start;padding-left:4px;position:relative;padding-bottom:16px}
+.tl-item:last-child{padding-bottom:0}
+.tl-item::before{content:'';position:absolute;left:11px;top:22px;bottom:0;width:1px;background:var(--border)}
+.tl-item:last-child::before{display:none}
+.tl-dot{width:16px;height:16px;border-radius:50%;background:var(--surface-2);border:2px solid var(--border);flex-shrink:0;margin-top:2px;transition:all .2s}
+.tl-item.tl-done .tl-dot{background:var(--green);border-color:var(--green)}
+.tl-item.tl-active .tl-dot{background:var(--accent);border-color:var(--accent);animation:pulse 2s infinite}
+.tl-title{font-size:13px;font-weight:500;color:var(--text)}
+.tl-time{font-size:11px;color:var(--text-dim);margin-top:2px}
+.drawer-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px}
+.btn-ghost-drawer{flex:1;padding:10px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);font-size:13px;font-weight:500;transition:all .15s}
+.btn-ghost-drawer:hover{border-color:var(--border-hover);color:var(--text)}
+.btn-primary-drawer{flex:2;padding:10px;background:var(--accent);color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;transition:all .2s}
+.btn-primary-drawer:hover{background:#7d9cff}
+
+/* ── Toast ──────────────────────────────────────────────────────── */
+.toast-container{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{display:flex;align-items:center;gap:10px;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,.5);max-width:90vw}
+.toast-success{background:#1a2b1e;border:1px solid rgba(61,214,140,.4);color:var(--green)}
+.toast-info{background:#1a1e2b;border:1px solid rgba(108,140,255,.4);color:var(--accent)}
+.toast-error{background:#2b1a1a;border:1px solid rgba(255,82,82,.4);color:var(--red)}
+
+/* ── Animations ─────────────────────────────────────────────────── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.9)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Vue Transitions ─────────────────────────────────────────────── */
+.fade-enter-active,.fade-leave-active{transition:opacity .2s ease}
+.fade-enter-from,.fade-leave-to{opacity:0}
+.slide-up-enter-active,.slide-up-leave-active{transition:all .25s ease}
+.slide-up-enter-from,.slide-up-leave-to{opacity:0;transform:translateY(16px)}
+.slide-right-enter-active,.slide-right-leave-active{transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.slide-right-enter-from,.slide-right-leave-to{transform:translateX(100%)}
+.list-enter-active{transition:all .3s ease}
+.list-leave-active{transition:all .2s ease}
+.list-enter-from{opacity:0;transform:translateY(10px)}
+.list-leave-to{opacity:0;transform:translateX(-16px)}
+.list-move{transition:transform .3s ease}
+.toast-enter-active,.toast-leave-active{transition:all .3s ease}
+.toast-enter-from,.toast-leave-to{opacity:0;transform:translateY(20px)}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media(max-width:1024px){
+  .grid-2{grid-template-columns:1fr}.right-col{position:static}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+  .main{margin-left:0!important}.content{padding:20px 16px}.topbar{padding:0 16px}
+  .hamburger{display:flex!important}.topbar-title{font-size:15px}
+  .btn-label{display:none}.btn-primary-top{padding:9px 12px}
+  .search-input{width:140px}
+}
+@media(max-width:480px){.stats-row{gap:10px}.stat-value{font-size:26px}.filter-tab{font-size:11px;padding:5px 10px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const { createApp, ref, computed, reactive, watch, nextTick, onMounted, onUnmounted, Teleport, Transition, TransitionGroup, h } = Vue
+const { createPinia, defineStore } = Pinia
+
+/* ════════════════════════════════════════════════════════════
+   STORES  (mirrors src/stores/index.js)
+════════════════════════════════════════════════════════════ */
+const useManuscriptStore = defineStore('manuscripts', () => {
+  const manuscripts = ref([
+    { id:1, title:'Aplicaciones de Redes Neuronales Recurrentes en la Predicción de Series Temporales Biomédicas', submittedAt:'2025-02-15', status:'En revisión', area:'Inteligencia Artificial y Machine Learning', keywords:['redes neuronales','series temporales','biomedicina'], reviewers:{assigned:3,completed:2}, deadline:'2025-03-28', abstract:'Este trabajo explora el uso de arquitecturas LSTM y GRU para predecir señales EEG y ECG en entornos clínicos, logrando una reducción del 18% en el error medio cuadrático en comparación con métodos convencionales.' },
+    { id:2, title:'Marco Metodológico para la Evaluación de Sesgo en Modelos de Lenguaje de Gran Escala', submittedAt:'2025-01-03', status:'Decisión', area:'Procesamiento de Lenguaje Natural', keywords:['LLMs','sesgo','evaluación'], reviewers:{assigned:3,completed:3}, deadline:null, actionRequired:true, abstract:'Proponemos un framework de métricas multidimensionales para cuantificar y mitigar sesgos en modelos de lenguaje a gran escala, con énfasis en sesgos de género, raza y origen geográfico.' },
+    { id:3, title:'Optimización de Algoritmos Genéticos para Planificación de Rutas en Flotas Autónomas', submittedAt:'2024-10-10', status:'Aceptado', area:'Sistemas Distribuidos', keywords:['algoritmos genéticos','flotas autónomas','optimización'], reviewers:{assigned:3,completed:3}, deadline:null, abstract:'Presentamos una variante híbrida de algoritmos evolutivos para resolver el VRP en tiempo real para flotas de hasta 200 vehículos autónomos, con mejoras del 23% en eficiencia de ruta.' },
+    { id:4, title:'Análisis Comparativo de Transformers vs CNNs en Segmentación de Imágenes Médicas', submittedAt:'2025-03-18', status:'Enviado', area:'Visión por Computador', keywords:['transformers','CNNs','segmentación','imágenes médicas'], reviewers:{assigned:0,completed:0}, deadline:null, abstract:'Comparamos sistemáticamente el desempeño de ViT y ResNet en datasets de tomografías y resonancias magnéticas, con análisis de complejidad computacional y requerimientos de datos.' }
+  ])
+
+  const activeFilter = ref('todos')
+  const searchQuery  = ref('')
+
+  const filteredManuscripts = computed(() => {
+    let list = manuscripts.value
+    if (activeFilter.value !== 'todos') list = list.filter(m => m.status === activeFilter.value)
+    if (searchQuery.value.trim()) {
+      const q = searchQuery.value.toLowerCase()
+      list = list.filter(m => m.title.toLowerCase().includes(q) || m.keywords.some(k => k.includes(q)) || m.area.toLowerCase().includes(q))
+    }
+    return list
+  })
+
+  const stats = computed(() => ({
+    total: manuscripts.value.length,
+    inReview: manuscripts.value.filter(m => m.status === 'En revisión').length,
+    accepted: manuscripts.value.filter(m => m.status === 'Aceptado').length,
+    avgDays: 18
+  }))
+
+  function addManuscript(data) {
+    manuscripts.value.unshift({ id: Date.now(), title: data.title, submittedAt: new Date().toISOString().split('T')[0], status:'Enviado', area: data.area, keywords: data.keywords ? data.keywords.split(',').map(k=>k.trim()) : [], reviewers:{assigned:0,completed:0}, deadline:null, abstract: data.abstract })
+  }
+  function removeManuscript(id) { manuscripts.value = manuscripts.value.filter(m => m.id !== id) }
+  function setFilter(f) { activeFilter.value = f }
+  function setSearch(q) { searchQuery.value = q }
+
+  return { manuscripts, filteredManuscripts, stats, activeFilter, searchQuery, addManuscript, removeManuscript, setFilter, setSearch }
+})
+
+const useNotificationStore = defineStore('notifications', () => {
+  const notifications = ref([
+    { id:1, type:'warning', read:false, text:'<strong>Acción requerida:</strong> El editor solicita revisiones menores en tu artículo sobre sesgo en LLMs.', time:'Hace 2 horas' },
+    { id:2, type:'info', read:false, text:'Se asignó un <strong>nuevo revisor</strong> a tu artículo sobre Redes Neuronales Recurrentes.', time:'Hace 1 día' },
+    { id:3, type:'success', read:false, text:'Tu envío sobre <strong>Análisis Comparativo de Transformers</strong> fue confirmado y está en revisión editorial.', time:'Hace 3 días' },
+    { id:4, type:'success', read:true, text:'¡Felicidades! Tu artículo sobre <strong>Algoritmos Genéticos</strong> fue <strong>aceptado</strong> para publicación.', time:'Hace 2 semanas' }
+  ])
+  const unreadCount = computed(() => notifications.value.filter(n => !n.read).length)
+  function markAllRead() { notifications.value.forEach(n => n.read = true) }
+  function markRead(id) { const n = notifications.value.find(n => n.id === id); if(n) n.read = true }
+  function addNotification(notif) { notifications.value.unshift({ id: Date.now(), read:false, time:'Ahora mismo', ...notif }) }
+  return { notifications, unreadCount, markAllRead, markRead, addNotification }
+})
+
+const useUIStore = defineStore('ui', () => {
+  const sidebarOpen      = ref(false)
+  const modalOpen        = ref(false)
+  const detailManuscript = ref(null)
+  const toasts           = ref([])
+  function toggleSidebar() { sidebarOpen.value = !sidebarOpen.value }
+  function closeSidebar()  { sidebarOpen.value = false }
+  function openModal()     { modalOpen.value = true }
+  function closeModal()    { modalOpen.value = false }
+  function openDetail(m)   { detailManuscript.value = m }
+  function closeDetail()   { detailManuscript.value = null }
+  function showToast(message, type = 'success') {
+    const id = Date.now()
+    toasts.value.push({ id, message, type })
+    setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id) }, 4000)
+  }
+  return { sidebarOpen, modalOpen, detailManuscript, toasts, toggleSidebar, closeSidebar, openModal, closeModal, openDetail, closeDetail, showToast }
+})
+
+/* ════════════════════════════════════════════════════════════
+   COMPOSABLES
+════════════════════════════════════════════════════════════ */
+function useManuscriptForm() {
+  const form = reactive({ title:'', abstract:'', area:'', keywords:'', file:null })
+  const errors = reactive({})
+  const submitting = ref(false)
+  const fileName = ref('')
+
+  function validate() {
+    Object.keys(errors).forEach(k => delete errors[k])
+    if (!form.title.trim()) errors.title = 'El título es obligatorio'
+    if (!form.abstract.trim()) errors.abstract = 'El resumen es obligatorio'
+    if (!form.area) errors.area = 'Selecciona un área temática'
+    if (!form.file) errors.file = 'Adjunta el manuscrito en PDF'
+    return Object.keys(errors).length === 0
+  }
+
+  function handleFile(file) {
+    if (file && file.type === 'application/pdf') { form.file = file; fileName.value = file.name; delete errors.file }
+    else if (file) errors.file = 'Solo se aceptan archivos PDF'
+  }
+
+  function reset() {
+    Object.assign(form, { title:'', abstract:'', area:'', keywords:'', file:null })
+    fileName.value = ''
+    Object.keys(errors).forEach(k => delete errors[k])
+    submitting.value = false
+  }
+  return { form, errors, submitting, fileName, validate, handleFile, reset }
+}
+
+/* ════════════════════════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════════════════════════ */
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  const [y, m, d] = dateStr.split('-')
+  return `${parseInt(d)} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][parseInt(m)-1]} ${y}`
+}
+
+const statusBadgeConfig = {
+  'Enviado':     { cls:'badge-enviado',   dot:'var(--blue)' },
+  'En revisión': { cls:'badge-revision',  dot:'var(--yellow)' },
+  'Decisión':    { cls:'badge-decision',  dot:'var(--orange)' },
+  'Aceptado':    { cls:'badge-aceptado',  dot:'var(--green)' },
+  'Rechazado':   { cls:'badge-rechazado', dot:'var(--red)' }
+}
+
+const statusStripeKey = { 'Enviado':'enviado','En revisión':'revision','Decisión':'decision','Aceptado':'aceptado','Rechazado':'rechazado' }
+
+const notifIconPaths = {
+  warning:'M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z',
+  success:'M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z',
+  info:'M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z',
+  error:'M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z'
+}
+
+const notifIconColors = { warning:{bg:'var(--orange-soft)',color:'var(--orange)'}, info:{bg:'var(--blue-soft)',color:'var(--blue)'}, success:{bg:'var(--green-soft)',color:'var(--green)'}, error:{bg:'var(--red-soft)',color:'var(--red)'} }
+
+const AREAS = ['Inteligencia Artificial y Machine Learning','Biomedicina Computacional','Sistemas Distribuidos','Seguridad Informática','Visión por Computador','Procesamiento de Lenguaje Natural','Redes y Comunicaciones','Ingeniería de Software','Otro']
+
+/* ════════════════════════════════════════════════════════════
+   ROOT APP COMPONENT
+════════════════════════════════════════════════════════════ */
+const App = {
+  setup() {
+    const ui    = useUIStore()
+    const ms    = useManuscriptStore()
+    const notif = useNotificationStore()
+    const { form, errors, submitting, fileName, validate, handleFile, reset } = useManuscriptForm()
+
+    // ── search ──
+    const searchExpanded = ref(false)
+    const searchQuery    = ref('')
+    const searchInputEl  = ref(null)
+    watch(searchQuery, q => ms.setSearch(q))
+
+    async function toggleSearch() {
+      searchExpanded.value = !searchExpanded.value
+      if (searchExpanded.value) { await nextTick(); searchInputEl.value?.focus() }
+    }
+    function collapseSearch() { if (!searchQuery.value) searchExpanded.value = false }
+
+    // ── active nav ──
+    const activeNav = ref('dashboard')
+    function setNav(k) { activeNav.value = k; ui.closeSidebar() }
+
+    // ── stats ──
+    const statCards = computed(() => [
+      { label:'Total enviados',  value: ms.stats.total,    color:'var(--text)',   sub:'En este congreso',       progress: null },
+      { label:'En revisión',     value: ms.stats.inReview, color:'var(--yellow)', sub:'Awaiting reviewers',     progress: ms.stats.total ? (ms.stats.inReview/ms.stats.total)*100 : 0 },
+      { label:'Aceptados',       value: ms.stats.accepted, color:'var(--green)',  sub: ms.stats.total ? `Tasa: ${Math.round(ms.stats.accepted/ms.stats.total*100)}%` : 'Tasa: 0%', progress: null },
+      { label:'Tiempo medio',    value: ms.stats.avgDays,  color:'var(--accent)', sub:'días de revisión',       progress: null }
+    ])
+
+    // ── filters ──
+    const STATUSES = ['Enviado','En revisión','Decisión','Aceptado','Rechazado']
+    const filters = computed(() => [
+      { value:'todos', label:'Todos', count: ms.manuscripts.length },
+      ...STATUSES.map(s => ({ value:s, label:s, count: ms.manuscripts.filter(m=>m.status===s).length }))
+    ])
+
+    // ── submit form ──
+    const dragOver = ref(false)
+    const fileInputEl = ref(null)
+    function onFileChange(e) { handleFile(e.target.files[0]) }
+    function onDrop(e) { dragOver.value = false; handleFile(e.dataTransfer.files[0]) }
+
+    async function handleSubmit() {
+      if (!validate()) return
+      submitting.value = true
+      await new Promise(r => setTimeout(r, 1200))
+      ms.addManuscript({ ...form })
+      notif.addNotification({ type:'success', text:`Tu manuscrito <strong>"${form.title.slice(0,55)}…"</strong> fue enviado correctamente.` })
+      ui.showToast('¡Manuscrito enviado correctamente!')
+      reset()
+      ui.closeModal()
+    }
+
+    function handleModalClose() {
+      if ((form.title || form.abstract || form.file) && !confirm('¿Descartar el borrador?')) return
+      reset(); ui.closeModal()
+    }
+
+    // ── withdraw ──
+    function handleWithdraw(m) {
+      if (!confirm(`¿Retirar el envío de "${m.title}"?`)) return
+      ms.removeManuscript(m.id)
+      notif.addNotification({ type:'info', text:`El manuscrito "<strong>${m.title.slice(0,50)}…</strong>" fue retirado.` })
+      ui.showToast('Envío retirado correctamente.')
+    }
+
+    // ── keyboard shortcuts ──
+    function onKeydown(e) {
+      if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); ui.openModal() }
+      if (e.key === 'Escape') { ui.closeModal(); ui.closeDetail() }
+    }
+    onMounted(() => window.addEventListener('keydown', onKeydown))
+    onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+
+    // ── scroll to notifs ──
+    function scrollToNotifs() { document.getElementById('notifications-panel')?.scrollIntoView({ behavior:'smooth', block:'start' }) }
+
+    // ── detail ──
+    const dm = computed(() => ui.detailManuscript)
+    function reviewProgress(m) { return m.reviewers.assigned ? Math.round(m.reviewers.completed / m.reviewers.assigned * 100) : 0 }
+    function timelineStatus(m, step) {
+      const order = ['Enviado','En revisión','Decisión','Aceptado']
+      const stepMap = [0, 1, 2, 3]
+      const cur = order.indexOf(m.status)
+      if (m.status === 'Rechazado' && step <= 2) return 'tl-done'
+      if (cur > stepMap[step]) return 'tl-done'
+      if (cur === stepMap[step]) return 'tl-active'
+      return ''
+    }
+
+    return {
+      ui, ms, notif, statCards, filters, AREAS, STATUSES,
+      searchExpanded, searchQuery, searchInputEl, toggleSearch, collapseSearch,
+      activeNav, setNav,
+      form, errors, submitting, fileName, dragOver, fileInputEl,
+      onFileChange, onDrop, handleSubmit, handleModalClose, handleWithdraw,
+      scrollToNotifs, dm, reviewProgress, timelineStatus,
+      formatDate, statusBadgeConfig, statusStripeKey, notifIconPaths, notifIconColors
+    }
+  },
+
+  template: `
+<div class="app-layout">
+
+  <!-- ── SIDEBAR OVERLAY ── -->
+  <Transition name="fade">
+    <div v-if="ui.sidebarOpen" class="sidebar-overlay" @click="ui.closeSidebar()"></div>
+  </Transition>
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" :class="{ open: ui.sidebarOpen }">
+    <div class="sidebar-logo">
+      <div class="logo-text">PeerReview<span class="logo-accent">AI</span></div>
+      <div class="logo-sub">Sistema de Revisión</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Principal</div>
+      <button class="nav-item" :class="{ active: activeNav==='dashboard' }" @click="setNav('dashboard')">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
+        Panel principal
+      </button>
+      <button class="nav-item" :class="{ active: activeNav==='manuscripts' }" @click="setNav('manuscripts')">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>
+        Mis manuscritos
+        <span class="nav-badge">{{ ms.manuscripts.length }}</span>
+      </button>
+      <button class="nav-item" :class="{ active: activeNav==='notifications' }" @click="setNav('notifications'); scrollToNotifs()">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/></svg>
+        Notificaciones
+        <span v-if="notif.unreadCount > 0" class="nav-badge">{{ notif.unreadCount }}</span>
+      </button>
+      <div class="nav-label">Gestión</div>
+      <button class="nav-item" :class="{ active: activeNav==='messages' }" @click="setNav('messages'); ui.showToast('Mensajes — próximamente','info')">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z" clip-rule="evenodd"/></svg>
+        Mensajes
+      </button>
+      <button class="nav-item" :class="{ active: activeNav==='history' }" @click="setNav('history'); ui.showToast('Historial — próximamente','info')">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+        Historial
+      </button>
+      <button class="nav-item" :class="{ active: activeNav==='settings' }" @click="setNav('settings'); ui.showToast('Configuración — próximamente','info')">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+        Configuración
+      </button>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar">MA</div>
+      <div>
+        <div class="user-name">María Álvarez</div>
+        <div class="user-role">Autor</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" style="display:none" id="hamburger-btn" @click="ui.toggleSidebar()">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="topbar-title">Panel de Autor</div>
+      </div>
+      <div class="topbar-actions">
+        <div style="display:flex;align-items:center;">
+          <input v-if="searchExpanded" ref="searchInputEl" v-model="searchQuery" class="search-input" placeholder="Buscar manuscritos..." @blur="collapseSearch" @keyup.escape="collapseSearch" />
+          <button class="icon-btn" @click="toggleSearch" title="Buscar (S)">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+          </button>
+        </div>
+        <button class="icon-btn" style="position:relative" @click="scrollToNotifs()" title="Notificaciones">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/></svg>
+          <Transition name="fade"><span v-if="notif.unreadCount > 0" class="bell-dot"></span></Transition>
+        </button>
+        <button class="btn-primary-top" @click="ui.openModal()" title="Nuevo manuscrito (N)">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+          <span class="btn-label">Enviar manuscrito</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div v-for="(c,i) in statCards" :key="c.label" class="stat-card" :style="{ animationDelay: i*0.05+'s' }">
+          <div class="stat-label">{{ c.label }}</div>
+          <div class="stat-value" :style="{ color: c.color }">{{ c.value }}</div>
+          <div class="stat-sub">
+            <span class="stat-dot" :style="{ background: c.color }"></span>
+            {{ c.sub }}
+          </div>
+          <div v-if="c.progress != null" class="progress-bar">
+            <div class="progress-fill" :style="{ width: c.progress + '%' }"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid -->
+      <div class="grid-2">
+
+        <!-- LEFT: Manuscripts -->
+        <div>
+          <div class="section-header">
+            <div class="section-title">Mis Manuscritos</div>
+            <span class="section-count">{{ ms.filteredManuscripts.length }} artículo{{ ms.filteredManuscripts.length !== 1 ? 's' : '' }}</span>
+          </div>
+
+          <div class="filter-tabs" role="tablist">
+            <button v-for="f in filters" :key="f.value" class="filter-tab" :class="{ active: ms.activeFilter === f.value }" @click="ms.setFilter(f.value)">
+              {{ f.label }}
+              <span v-if="f.count > 0 && f.value !== 'todos'" class="tab-count">{{ f.count }}</span>
+            </button>
+          </div>
+
+          <TransitionGroup name="list" tag="div" class="manuscript-list">
+            <div v-for="m in ms.filteredManuscripts" :key="m.id"
+              class="manuscript-card" :class="'stripe-' + (statusStripeKey[m.status] || '')"
+              @click="ui.openDetail(m)">
+              <div class="mc-top">
+                <div class="mc-title">{{ m.title }}</div>
+                <span class="badge" :class="statusBadgeConfig[m.status]?.cls">
+                  <span class="badge-dot" :style="{ background: statusBadgeConfig[m.status]?.dot }"></span>
+                  {{ m.status }}
+                </span>
+              </div>
+              <div class="mc-meta">
+                <div class="mc-meta-item">
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+                  {{ formatDate(m.submittedAt) }}
+                </div>
+                <div v-if="m.reviewers.assigned > 0" class="mc-meta-item">
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+                  {{ m.reviewers.assigned }} revisores asignados
+                </div>
+                <div v-if="m.deadline" class="mc-meta-item">
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                  Vence: {{ formatDate(m.deadline) }}
+                </div>
+                <div v-if="m.actionRequired" class="mc-meta-item action-required">
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                  Acción requerida
+                </div>
+                <div v-if="m.status === 'Aceptado'" class="mc-meta-item accepted">
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                  Publicación confirmada
+                </div>
+              </div>
+              <div v-if="m.status === 'En revisión'" >
+                <div class="rp-label-row"><span>Revisiones</span><span>{{ m.reviewers.completed }}/{{ m.reviewers.assigned }}</span></div>
+                <div class="rp-bar"><div class="rp-fill" :style="{ width: (m.reviewers.completed/m.reviewers.assigned*100)+'%' }"></div></div>
+              </div>
+              <div class="mc-actions" @click.stop>
+                <template v-if="m.status === 'Decisión'">
+                  <button class="mc-btn mc-btn-warning" @click="ui.openDetail(m)">Revisar comentarios</button>
+                  <button class="mc-btn" @click="ui.showToast('Subir revisión — próximamente','info')">Cargar revisión</button>
+                </template>
+                <template v-else-if="m.status === 'Aceptado'">
+                  <button class="mc-btn" @click="ui.openDetail(m)">Ver carta de aceptación</button>
+                  <button class="mc-btn" @click="ui.showToast('Descarga iniciada…','info')">Descargar prueba</button>
+                </template>
+                <template v-else-if="m.status === 'Enviado'">
+                  <button class="mc-btn" @click="ui.openDetail(m)">Ver detalles</button>
+                  <button class="mc-btn mc-btn-danger" @click.stop="handleWithdraw(m)">Retirar envío</button>
+                </template>
+                <template v-else>
+                  <button class="mc-btn" @click="ui.openDetail(m)">Ver detalles</button>
+                  <button class="mc-btn" @click="ui.showToast('Descarga iniciada…','info')">Ver versión</button>
+                </template>
+                <div v-if="m.reviewers.completed > 0" class="mc-review-info">{{ m.reviewers.completed }}/{{ m.reviewers.assigned }} revisiones recibidas</div>
+              </div>
+            </div>
+          </TransitionGroup>
+
+          <!-- Empty state -->
+          <Transition name="fade">
+            <div v-if="ms.filteredManuscripts.length === 0" class="empty-state">
+              <div class="empty-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent)"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+              </div>
+              <div class="empty-title">{{ ms.searchQuery ? 'Sin resultados' : 'Sin manuscritos aún' }}</div>
+              <div class="empty-text">
+                {{ ms.searchQuery ? 'No se encontraron artículos para "' + ms.searchQuery + '".' : ms.activeFilter !== 'todos' ? 'No tienes manuscritos con estado "' + ms.activeFilter + '".' : '¡Comparte tu investigación y contribuye a la comunidad científica!' }}
+              </div>
+              <button v-if="ms.activeFilter === 'todos' && !ms.searchQuery" class="btn-primary-cta" @click="ui.openModal()">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                Enviar mi primer manuscrito
+              </button>
+              <button v-else class="btn-ghost-sm" @click="ms.setFilter('todos'); ms.setSearch(''); searchQuery = ''">Ver todos</button>
+            </div>
+          </Transition>
+        </div>
+
+        <!-- RIGHT col -->
+        <aside class="right-col">
+          <!-- Quick Submit -->
+          <div class="quick-submit">
+            <div class="qs-title">¿Tienes una investigación lista?</div>
+            <div class="qs-sub">
+              <span class="deadline-dot"></span>
+              Convocatoria abierta hasta el <strong>30 de abril 2025</strong>
+            </div>
+            <button class="btn-primary-full" @click="ui.openModal()">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+              + Enviar nuevo manuscrito
+            </button>
+            <div class="qs-hint">Doble ciego — revisión asistida por IA</div>
+          </div>
+
+          <!-- Notifications -->
+          <div class="notif-panel" id="notifications-panel">
+            <div class="notif-header">
+              <div class="notif-title">
+                Notificaciones
+                <Transition name="fade"><span v-if="notif.unreadCount > 0" class="notif-badge">{{ notif.unreadCount }}</span></Transition>
+              </div>
+              <button v-if="notif.unreadCount > 0" class="notif-mark" @click="notif.markAllRead()">Marcar todas leídas</button>
+            </div>
+            <TransitionGroup name="list" tag="div" class="notif-list">
+              <div v-for="n in notif.notifications" :key="n.id" class="notif-item" :class="{ unread: !n.read }" @click="notif.markRead(n.id)">
+                <div class="notif-icon-wrap" :style="{ background: notifIconColors[n.type]?.bg, color: notifIconColors[n.type]?.color }">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" :d="notifIconPaths[n.type]" clip-rule="evenodd"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="notif-text" v-html="n.text"></div>
+                  <div class="notif-time">{{ n.time }}</div>
+                </div>
+              </div>
+            </TransitionGroup>
+            <div v-if="notif.notifications.length === 0" class="notif-empty">Sin notificaciones recientes</div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: New Manuscript ── -->
+  <Teleport to="body">
+    <Transition name="fade">
+      <div v-if="ui.modalOpen" class="modal-overlay" @click.self="handleModalClose()">
+        <Transition name="slide-up">
+          <div v-if="ui.modalOpen" class="modal">
+            <div class="modal-header">
+              <div>
+                <div class="modal-title">Enviar Manuscrito</div>
+                <div class="modal-sub">El sistema analizará semánticamente tu artículo para asignar revisores automáticamente.</div>
+              </div>
+              <button class="modal-close" @click="handleModalClose()">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+            <form @submit.prevent="handleSubmit" novalidate>
+              <div class="form-group">
+                <label class="form-label" for="ms-title">Título del artículo *</label>
+                <input id="ms-title" v-model="form.title" class="form-input" :class="{ 'is-error': errors.title }" type="text" placeholder="Ej: Aplicaciones de Deep Learning en…" @input="delete errors.title" />
+                <div v-if="errors.title" class="form-error-msg">{{ errors.title }}</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ms-abstract">Resumen (Abstract) *</label>
+                <textarea id="ms-abstract" v-model="form.abstract" class="form-textarea" :class="{ 'is-error': errors.abstract }" placeholder="Describe los objetivos, metodología y conclusiones…" @input="delete errors.abstract"></textarea>
+                <div class="form-hint">{{ form.abstract.length }} / 2000 caracteres</div>
+                <div v-if="errors.abstract" class="form-error-msg">{{ errors.abstract }}</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ms-area">Área temática *</label>
+                <div class="select-wrap">
+                  <select id="ms-area" v-model="form.area" class="form-select" :class="{ 'is-error': errors.area }" @change="delete errors.area">
+                    <option value="" disabled>Selecciona un área</option>
+                    <option v-for="a in AREAS" :key="a" :value="a">{{ a }}</option>
+                  </select>
+                  <svg class="select-arrow" width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </div>
+                <div v-if="errors.area" class="form-error-msg">{{ errors.area }}</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ms-keywords">Palabras clave</label>
+                <input id="ms-keywords" v-model="form.keywords" class="form-input" type="text" placeholder="Ej: deep learning, clasificación, imágenes médicas" />
+                <div class="form-hint">Separadas por comas — ayudan a la asignación de revisores</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Archivo del manuscrito (PDF) *</label>
+                <div class="upload-zone" :class="{ 'has-file': fileName, 'drag-active': dragOver, 'is-error': errors.file }"
+                  @click="fileInputEl?.click()" @dragover.prevent="dragOver=true" @dragleave="dragOver=false" @drop.prevent="onDrop">
+                  <template v-if="!fileName">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" style="margin:0 auto 8px;display:block"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                    <div class="upload-text"><strong>Haz clic para subir</strong> o arrastra tu archivo aquí</div>
+                    <div class="upload-hint">PDF hasta 20 MB — Versión anónima (doble ciego)</div>
+                  </template>
+                  <template v-else>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" style="margin:0 auto 8px;display:block"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <div class="upload-text" style="color:var(--green)"><strong>{{ fileName }}</strong></div>
+                    <div class="upload-hint">Haz clic para cambiar el archivo</div>
+                  </template>
+                </div>
+                <div v-if="errors.file" class="form-error-msg">{{ errors.file }}</div>
+                <input ref="fileInputEl" type="file" accept=".pdf" style="display:none" @change="onFileChange" />
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn-ghost-modal" @click="handleModalClose()">Cancelar</button>
+                <button type="submit" class="btn-submit" :disabled="submitting">
+                  <span v-if="!submitting">Enviar manuscrito</span>
+                  <template v-else><span class="spinner"></span> Enviando…</template>
+                </button>
+              </div>
+            </form>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- ── DETAIL DRAWER ── -->
+  <Teleport to="body">
+    <Transition name="fade">
+      <div v-if="dm" class="detail-overlay" @click.self="ui.closeDetail()">
+        <Transition name="slide-right">
+          <div v-if="dm" class="detail-drawer">
+            <div class="drawer-header">
+              <span class="badge" :class="statusBadgeConfig[dm.status]?.cls">
+                <span class="badge-dot" :style="{ background: statusBadgeConfig[dm.status]?.dot }"></span>
+                {{ dm.status }}
+              </span>
+              <button class="modal-close" @click="ui.closeDetail()">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+            <div class="drawer-body">
+              <h2 class="drawer-title">{{ dm.title }}</h2>
+              <div class="meta-grid">
+                <div class="meta-item"><div class="meta-label">Enviado</div><div class="meta-value">{{ formatDate(dm.submittedAt) }}</div></div>
+                <div class="meta-item"><div class="meta-label">Área</div><div class="meta-value" style="font-size:11px">{{ dm.area }}</div></div>
+                <div v-if="dm.deadline" class="meta-item"><div class="meta-label">Vencimiento</div><div class="meta-value">{{ formatDate(dm.deadline) }}</div></div>
+                <div class="meta-item"><div class="meta-label">Revisores</div><div class="meta-value">{{ dm.reviewers.completed }}/{{ dm.reviewers.assigned }} completadas</div></div>
+              </div>
+              <div v-if="dm.status === 'En revisión' && dm.reviewers.assigned > 0" style="margin-bottom:20px">
+                <div class="rp-label-row"><span>Progreso de revisión</span><span>{{ reviewProgress(dm) }}%</span></div>
+                <div class="rp-bar"><div class="rp-fill" :style="{ width: reviewProgress(dm) + '%' }"></div></div>
+              </div>
+              <div class="section-block">
+                <div class="block-label">Resumen</div>
+                <p class="block-text">{{ dm.abstract }}</p>
+              </div>
+              <div v-if="dm.keywords?.length" class="section-block">
+                <div class="block-label">Palabras clave</div>
+                <div class="keyword-chips">
+                  <span v-for="kw in dm.keywords" :key="kw" class="chip">{{ kw }}</span>
+                </div>
+              </div>
+              <div class="section-block">
+                <div class="block-label">Historial</div>
+                <div class="timeline">
+                  <div class="tl-item" :class="timelineStatus(dm, 0)"><div class="tl-dot"></div><div><div class="tl-title">Manuscrito enviado</div><div class="tl-time">{{ formatDate(dm.submittedAt) }}</div></div></div>
+                  <div class="tl-item" :class="timelineStatus(dm, 1)"><div class="tl-dot"></div><div><div class="tl-title">Revisión editorial</div><div class="tl-time">{{ ['En revisión','Decisión','Aceptado','Rechazado'].includes(dm.status) ? 'Completada' : 'Pendiente' }}</div></div></div>
+                  <div class="tl-item" :class="timelineStatus(dm, 2)"><div class="tl-dot"></div><div><div class="tl-title">Revisión por pares</div><div class="tl-time">{{ dm.status==='En revisión'?'En curso':['Decisión','Aceptado','Rechazado'].includes(dm.status)?'Completada':'Pendiente' }}</div></div></div>
+                  <div class="tl-item" :class="timelineStatus(dm, 3)"><div class="tl-dot"></div><div><div class="tl-title">Decisión del editor</div><div class="tl-time">{{ dm.status==='Decisión'?'En proceso':dm.status==='Aceptado'?'Aceptado':dm.status==='Rechazado'?'Rechazado':'Pendiente' }}</div></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="drawer-footer">
+              <button class="btn-ghost-drawer" @click="ui.closeDetail()">Cerrar</button>
+              <button class="btn-primary-drawer" @click="ui.showToast(dm.status==='Decisión'?'Subir revisión — próximamente':'Descarga iniciada…','info')">
+                {{ dm.status === 'Decisión' ? 'Cargar revisión' : 'Descargar PDF' }}
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- ── TOASTS ── -->
+  <Teleport to="body">
+    <div class="toast-container">
+      <TransitionGroup name="toast">
+        <div v-for="t in ui.toasts" :key="t.id" class="toast" :class="'toast-'+t.type">
+          <svg v-if="t.type==='success'" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+          <svg v-else width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+          {{ t.message }}
+        </div>
+      </TransitionGroup>
+    </div>
+  </Teleport>
+
+</div>
+`
+}
+
+/* ════════════════════════════════════════════════════════════
+   BOOTSTRAP
+════════════════════════════════════════════════════════════ */
+const pinia = createPinia()
+const app   = createApp(App)
+app.use(pinia)
+app.mount('#app')
+
+// Show hamburger on mobile via JS (mirrors @media)
+function checkMobile() {
+  const hb = document.getElementById('hamburger-btn')
+  if (hb) hb.style.display = window.innerWidth <= 768 ? 'flex' : 'none'
+}
+window.addEventListener('resize', checkMobile)
+checkMobile()
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
-  "name": "revisor-dashboard",
+  "name": "autor-dashboard",
   "version": "1.0.0",
-  "description": "Dashboard del revisor",
+  "description": "PeerReview AI — Panel del Autor (Vue 3 + Vite + Pinia)",
   "type": "module",
   "scripts": {
     "dev": "vite",

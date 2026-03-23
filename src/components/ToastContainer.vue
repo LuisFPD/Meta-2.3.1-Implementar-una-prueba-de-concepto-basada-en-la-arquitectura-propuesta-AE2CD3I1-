@@ -1,47 +1,39 @@
 <template>
-  <Teleport to="body">
-    <div class="toast-wrap">
-      <TransitionGroup name="toast">
-        <div
-          v-for="toast in store.toasts"
-          :key="toast.id"
-          class="toast"
-        >
-          {{ toast.msg }}
-        </div>
-      </TransitionGroup>
-    </div>
-  </Teleport>
+  <div class="toast-wrap">
+    <TransitionGroup name="toast">
+      <div v-for="t in store.toasts" :key="t.id" class="toast">
+        {{ t.msg }}
+      </div>
+    </TransitionGroup>
+  </div>
 </template>
-
+ 
 <script setup>
-import { useReviewerStore } from '@/stores'
-const store = useReviewerStore()
+import { useAuthorStore } from '@/stores'
+const store = useAuthorStore()
 </script>
-
+ 
 <style scoped>
 .toast-wrap {
   position: fixed;
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 9999;
+  z-index: 200;
+  pointer-events: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   align-items: center;
-  pointer-events: none;
+  gap: 8px;
 }
-
 .toast {
-  background: var(--text);
-  color: var(--white);
-  padding: 10px 20px;
-  border-radius: var(--radius);
+  background: #18181b;
+  color: #fff;
   font-size: 13px;
-  font-weight: 500;
+  padding: 10px 18px;
+  border-radius: 8px;
   white-space: nowrap;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-  pointer-events: auto;
 }
+.toast-enter-active, .toast-leave-active { transition: all .25s ease; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(8px); }
 </style>
