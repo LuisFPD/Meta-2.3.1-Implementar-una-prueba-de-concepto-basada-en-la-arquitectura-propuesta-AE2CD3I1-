@@ -1,7 +1,7 @@
 {
-  "name": "revisor-dashboard",
+  "name": "dashboard-editor-jefe",
   "version": "1.0.0",
-  "description": "Dashboard del revisor",
+  "description": "PeerReview AI — Panel del Editor Jefe",
   "type": "module",
   "scripts": {
     "dev": "vite",
