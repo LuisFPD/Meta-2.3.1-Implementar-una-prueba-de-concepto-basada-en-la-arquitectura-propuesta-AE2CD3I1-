@@ -1,7 +1,7 @@
 {
-  "name": "revisor-dashboard",
+  "name": "dashboard-editor-seccion",
   "version": "1.0.0",
-  "description": "Dashboard del revisor",
+  "description": "PeerReview AI — Panel del Editor de Sección",
   "type": "module",
   "scripts": {
     "dev": "vite",
